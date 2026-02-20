@@ -8,7 +8,8 @@
 # Jobs:
 #   test            → Jest suite (same gate as production)
 #   deploy-staging  → SSH to VPS, deploy to /opt/cloudarc-staging
-#                     (runs on port 8080, separate DB)
+#   open-pr         → Creates PR develop→main and enables auto-merge
+#                     (auto-merge fires when deploy.yml tests pass on main)
 #
 # Staging URL: http://152.42.194.51:8080
 #
@@ -17,11 +18,18 @@
 #   VPS_USER     → root
 #   VPS_SSH_KEY  → contents of C:\Users\User\.ssh\cloudarc_deploy
 #
-# Optional Secrets:
-#   STAGING_JWT_SECRET → JWT secret for staging (defaults to placeholder)
+# GitHub repo settings required (one-time, manual):
+#   Settings → General → "Allow auto-merge"  ✓
+#   Settings → Branches → Add rule for main:
+#     "Require status checks to pass" → select "Run Tests"
 # ─────────────────────────────────────────────────────────
 
 name: Deploy to Staging
+
+# Grant the built-in GITHUB_TOKEN permission to open and merge PRs
+permissions:
+  contents:      write
+  pull-requests: write
 
 on:
   push:
@@ -109,3 +117,53 @@ jobs:
 
             echo "── Staging deploy complete ✓ ────────────────────"
             echo "   API available at: http://$(hostname -I | awk '{print $1}'):8080/health"
+
+  # ── Job 3: Open PR + enable auto-merge ────────────────
+  # Runs after staging deploys successfully.
+  # Creates a PR from develop → main (skips if one already exists).
+  # Enables auto-merge: GitHub will merge it automatically once
+  # the "Run Tests" check passes on the PR (via deploy.yml).
+  open-pr:
+    name: Open PR & Enable Auto-Merge
+    runs-on: ubuntu-latest
+    needs: deploy-staging     # only runs if staging deployed cleanly
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create PR (develop → main) and enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the short SHA and commit message for the PR title
+          COMMIT_MSG=$(git log -1 --pretty=format:%s)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+
+          echo "── Checking for existing open PR ────────────────"
+          EXISTING=$(gh pr list \
+            --base main \
+            --head develop \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+
+          if [ -n "$EXISTING" ]; then
+            echo "── PR #$EXISTING already open — enabling auto-merge"
+            gh pr merge "$EXISTING" --auto --merge \
+              --subject "chore: auto-merge develop into main (#$EXISTING)"
+          else
+            echo "── Creating new PR ──────────────────────────────"
+            PR_URL=$(gh pr create \
+              --base main \
+              --head develop \
+              --title "chore: promote develop → main ($SHORT_SHA)" \
+              --body "$(printf '## Auto-generated PR\n\nLatest commit: **%s**\n\nStaging verified ✅ — auto-merges once CI checks pass on this PR.' "$COMMIT_MSG")")
+
+            echo "── PR created: $PR_URL"
+            echo "── Enabling auto-merge ──────────────────────────"
+            gh pr merge "$PR_URL" --auto --merge \
+              --subject "chore: auto-merge develop into main"
+          fi
+
+          echo "── Done: PR will merge to main automatically once checks pass ✓"
