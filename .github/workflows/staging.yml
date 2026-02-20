@@ -134,7 +134,10 @@ jobs:
 
       - name: Create PR (develop → main) and enable auto-merge
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT required — GITHUB_TOKEN merges are blocked from triggering
+          # downstream workflows (GitHub security policy). A PAT is treated
+          # as a human action and DOES trigger deploy.yml on main.
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           # Get the short SHA and commit message for the PR title
           COMMIT_MSG=$(git log -1 --pretty=format:%s)
