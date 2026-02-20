@@ -55,6 +55,11 @@ jobs:
             echo "── Rebuilding & restarting containers ───────────"
             docker compose up -d --build
 
+            echo "── Reloading nginx config (force-recreate) ──────"
+            # git pull replaces file inodes; force-recreate ensures
+            # nginx picks up the new nginx.conf on every deploy.
+            docker compose up -d --force-recreate nginx
+
             echo "── Container status ─────────────────────────────"
             docker compose ps
 
