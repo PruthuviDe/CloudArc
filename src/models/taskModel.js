@@ -9,31 +9,43 @@ const pool = require('../config/database');
 
 const TaskModel = {
   /**
-   * Return all tasks, optionally filtered by user_id or status.
+   * Return paginated tasks, optionally filtered by user_id or status.
+   * Returns rows + total count for building pagination metadata.
    */
-  async findAll({ userId, status } = {}) {
-    let query = `
+  async findAll({ userId, status, limit = 20, offset = 0 } = {}) {
+    let dataQuery = `
       SELECT t.id, t.title, t.description, t.status,
              t.user_id, u.username AS user_name,
              t.created_at, t.updated_at
         FROM tasks t
         JOIN users u ON u.id = t.user_id
        WHERE 1 = 1`;
+    let countQuery = `SELECT COUNT(*) AS total FROM tasks t WHERE 1 = 1`;
     const params = [];
 
     if (userId) {
       params.push(userId);
-      query += ` AND t.user_id = $${params.length}`;
+      const cond = ` AND t.user_id = $${params.length}`;
+      dataQuery  += cond;
+      countQuery += cond;
     }
     if (status) {
       params.push(status);
-      query += ` AND t.status = $${params.length}`;
+      const cond = ` AND t.status = $${params.length}`;
+      dataQuery  += cond;
+      countQuery += cond;
     }
 
-    query += ` ORDER BY t.created_at DESC`;
+    params.push(limit);
+    dataQuery += ` ORDER BY t.created_at DESC LIMIT $${params.length}`;
+    params.push(offset);
+    dataQuery += ` OFFSET $${params.length}`;
 
-    const { rows } = await pool.query(query, params);
-    return rows;
+    const [{ rows }, { rows: countRows }] = await Promise.all([
+      pool.query(dataQuery, params),
+      pool.query(countQuery, params.slice(0, params.length - 2)), // without limit/offset
+    ]);
+    return { rows, total: parseInt(countRows[0].total, 10) };
   },
 
   /**

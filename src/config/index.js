@@ -30,7 +30,9 @@ const config = {
 
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m',       // access token — short-lived
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d', // refresh token
   },
 };
 

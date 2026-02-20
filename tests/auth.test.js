@@ -13,7 +13,9 @@ process.env.JWT_SECRET = 'test-secret-for-jest';
 
 // Mock the auth model so no real DB queries run
 jest.mock('../src/models/authModel');
+jest.mock('../src/models/refreshTokenModel');
 const AuthModel = require('../src/models/authModel');
+const RefreshTokenModel = require('../src/models/refreshTokenModel');
 const app = require('../src/app');
 
 // Generate a real hash so bcrypt.compare passes in login tests
@@ -31,6 +33,8 @@ beforeAll(async () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // RefreshTokenModel.create must not hit the DB
+  RefreshTokenModel.create.mockResolvedValue({});
 });
 
 // ── Registration ─────────────────────────────────────────
@@ -54,7 +58,8 @@ describe('POST /api/auth/register', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty('token');
+    expect(res.body.data).toHaveProperty('accessToken');
+    expect(res.body.data).toHaveProperty('refreshToken');
     expect(res.body.data.user).not.toHaveProperty('password_hash');
   });
 
@@ -115,7 +120,8 @@ describe('POST /api/auth/login', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty('token');
+    expect(res.body.data).toHaveProperty('accessToken');
+    expect(res.body.data).toHaveProperty('refreshToken');
     expect(res.body.data.user.email).toBe('test@example.com');
     expect(res.body.data.user).not.toHaveProperty('password_hash');
   });

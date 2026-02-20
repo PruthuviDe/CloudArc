@@ -9,8 +9,8 @@
 const UserModel = require('../models/userModel');
 
 const UserService = {
-  async getAllUsers() {
-    return UserModel.findAll();
+  async getAllUsers({ limit, offset } = {}) {
+    return UserModel.findAll({ limit, offset });
   },
 
   async getUserById(id) {

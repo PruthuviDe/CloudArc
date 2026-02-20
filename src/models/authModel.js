@@ -34,6 +34,19 @@ const AuthModel = {
   },
 
   /**
+   * Find a user by id (used in refresh token rotation).
+   */
+  async findById(id) {
+    const { rows } = await pool.query(
+      `SELECT id, username, email, password_hash, created_at
+         FROM users
+        WHERE id = $1`,
+      [id]
+    );
+    return rows[0] || null;
+  },
+
+  /**
    * Create a user with a hashed password.
    */
   async create({ username, email, passwordHash }) {

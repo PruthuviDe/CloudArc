@@ -10,15 +10,21 @@ const pool = require('../config/database');
 
 const UserModel = {
   /**
-   * Retrieve every user (lightweight list).
+   * Retrieve a paginated list of users.
+   * Returns rows + total count for building pagination metadata.
    */
-  async findAll() {
-    const { rows } = await pool.query(
-      `SELECT id, username, email, created_at, updated_at
-         FROM users
-        ORDER BY created_at DESC`
-    );
-    return rows;
+  async findAll({ limit = 20, offset = 0 } = {}) {
+    const [{ rows }, { rows: countRows }] = await Promise.all([
+      pool.query(
+        `SELECT id, username, email, created_at, updated_at
+           FROM users
+          ORDER BY created_at DESC
+          LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      ),
+      pool.query(`SELECT COUNT(*) AS total FROM users`),
+    ]);
+    return { rows, total: parseInt(countRows[0].total, 10) };
   },
 
   /**

@@ -45,7 +45,7 @@ describe('Auth guard on /api/tasks', () => {
 
 describe('GET /api/tasks', () => {
   it('returns task list', async () => {
-    TaskService.getAllTasks.mockResolvedValue([FAKE_TASK]);
+    TaskService.getAllTasks.mockResolvedValue({ rows: [FAKE_TASK], total: 1 });
 
     const res = await request(app)
       .get('/api/tasks')

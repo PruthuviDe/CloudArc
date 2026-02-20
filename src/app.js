@@ -65,7 +65,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '1.2.0',          // Tier 4: Prometheus + Grafana + Correlation IDs
+    version: '1.3.0',          // Tier 5: Pagination + API versioning + Refresh tokens
   });
 });
 
