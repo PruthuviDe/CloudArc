@@ -1,0 +1,84 @@
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────
+  # NOT exposed to the internet — only reachable inside the
+  # Docker network by the api service.
+  db:
+    image: postgres:16
+    container_name: cloudarc-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cloudarc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pruthuvide
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloudarc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ─────────────────────────────────────────────
+  # NOT exposed to the internet — internal Docker network only.
+  redis:
+    image: redis:7.4.7
+    container_name: cloudarc-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Node.js API ────────────────────────────────────────
+  # NOT exposed to the internet — port 3000 is internal only.
+  # All public traffic comes through Nginx on port 80.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloudarc-api
+    restart: unless-stopped
+    expose:
+      - "3000"               # visible inside Docker network only
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cloudarc
+      DB_USER: postgres
+      DB_PASSWORD: pruthuvide
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      CACHE_TTL: 60
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Nginx reverse proxy ────────────────────────────────
+  # The ONLY service with a public port (80).
+  # Proxies all traffic to api:3000 and adds security headers
+  # + rate limiting.
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cloudarc-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"              # only public-facing port
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+
+# ── Named volumes (data persists between container restarts)
+volumes:
+  postgres_data:
+  redis_data:

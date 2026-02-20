@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────
+# .github/workflows/deploy.yml
+# ─────────────────────────────────────────────────────────
+# CI/CD Pipeline for CloudArc API
+#
+# Trigger: every push to the main branch
+#
+# What it does:
+#   1. SSHs into the VPS
+#   2. Pulls the latest code from GitHub
+#   3. Rebuilds the Docker image if needed
+#   4. Restarts containers with zero manual steps
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   VPS_HOST       → 152.42.194.51
+#   VPS_USER       → root
+#   VPS_SSH_KEY    → contents of C:\Users\User\.ssh\cloudarc_deploy (private key)
+# ─────────────────────────────────────────────────────────
+
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main          # fires on every push to main
+
+jobs:
+  deploy:
+    name: SSH Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── 1. Checkout (needed for any future build steps) ─
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. SSH into VPS and deploy ────────────────────
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host:        ${{ secrets.VPS_HOST }}
+          username:    ${{ secrets.VPS_USER }}
+          key:         ${{ secrets.VPS_SSH_KEY }}
+          port:        22
+          # Commands run on the VPS:
+          script: |
+            set -e
+
+            cd /opt/cloudarc
+
+            echo "── Pulling latest code ──────────────────────────"
+            git pull origin main
+
+            echo "── Rebuilding & restarting containers ───────────"
+            docker compose up -d --build
+
+            echo "── Container status ─────────────────────────────"
+            docker compose ps
+
+            echo "── Deploy complete ✓ ────────────────────────────"
