@@ -17,8 +17,10 @@
  */
 
 const TaskModel = require('../models/taskModel');
+const AuditModel = require('../models/auditModel');
 const redis = require('../config/redis');
 const config = require('../config');
+const { createError, ERROR_CODES } = require('../errors/codes');
 
 // ── Cache key helpers ────────────────────────────────────
 const CACHE_PREFIX = 'tasks';
@@ -59,7 +61,7 @@ const TaskService = {
       // Non-critical — swallow
     }
 
-    return tasks;
+    return result;
   },
 
   async getTaskById(id) {
@@ -73,11 +75,7 @@ const TaskService = {
     }
 
     const task = await TaskModel.findById(id);
-    if (!task) {
-      const error = new Error('Task not found');
-      error.statusCode = 404;
-      throw error;
-    }
+    if (!task) throw createError('Task not found', 404, ERROR_CODES.NOT_FOUND_TASK);
 
     try {
       await redis.set(cacheKey, JSON.stringify(task), 'EX', config.cacheTTL);
@@ -88,35 +86,37 @@ const TaskService = {
     return task;
   },
 
-  async createTask(data) {
+  async createTask(data, actor) {
     if (!data.title || !data.userId) {
-      const error = new Error('Title and userId are required');
-      error.statusCode = 400;
-      throw error;
+      throw createError('Title and userId are required', 400, ERROR_CODES.VALIDATION_FAILED);
     }
     const task = await TaskModel.create(data);
+    if (actor) {
+      AuditModel.log({ actorId: actor.id, actorEmail: actor.email, action: 'task.create',
+        resource: 'task', resourceId: task.id, ip: actor._ip, requestId: actor._requestId });
+    }
     await this._invalidateListCache();
     return task;
   },
 
-  async updateTask(id, data) {
+  async updateTask(id, data, actor) {
     const task = await TaskModel.update(id, data);
-    if (!task) {
-      const error = new Error('Task not found');
-      error.statusCode = 404;
-      throw error;
+    if (!task) throw createError('Task not found', 404, ERROR_CODES.NOT_FOUND_TASK);
+    if (actor) {
+      AuditModel.log({ actorId: actor.id, actorEmail: actor.email, action: 'task.update',
+        resource: 'task', resourceId: id, ip: actor._ip, requestId: actor._requestId });
     }
     await this._invalidateItemCache(id);
     await this._invalidateListCache();
     return task;
   },
 
-  async deleteTask(id) {
+  async deleteTask(id, actor) {
     const deleted = await TaskModel.delete(id);
-    if (!deleted) {
-      const error = new Error('Task not found');
-      error.statusCode = 404;
-      throw error;
+    if (!deleted) throw createError('Task not found', 404, ERROR_CODES.NOT_FOUND_TASK);
+    if (actor) {
+      AuditModel.log({ actorId: actor.id, actorEmail: actor.email, action: 'task.delete',
+        resource: 'task', resourceId: id, ip: actor._ip, requestId: actor._requestId });
     }
     await this._invalidateItemCache(id);
     await this._invalidateListCache();

@@ -57,7 +57,10 @@ function createLimiter({ name, max, windowSecs, byUser = false }) {
       if (count > max) {
         return res.status(429).json({
           success: false,
-          error:   `Too many requests — ${name} limit is ${max} per ${windowSecs}s. Retry after ${ttl}s.`,
+          error: {
+            code:    'RATE_LIMIT_001',
+            message: `Too many requests — ${name} limit is ${max} per ${windowSecs}s. Retry after ${ttl}s.`,
+          },
         });
       }
 

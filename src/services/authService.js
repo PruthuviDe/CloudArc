@@ -14,6 +14,7 @@ const AuthModel = require('../models/authModel');
 const RefreshTokenModel = require('../models/refreshTokenModel');
 const PasswordResetModel = require('../models/passwordResetModel');
 const { sendMail } = require('../config/mailer');
+const { createError, ERROR_CODES } = require('../errors/codes');
 const config = require('../config');
 
 const SALT_ROUNDS = 12;
@@ -30,14 +31,10 @@ const AuthService = {
     ]);
 
     if (existingEmail) {
-      const err = new Error('Email is already registered');
-      err.statusCode = 409;
-      throw err;
+      throw createError('Email is already registered', 409, ERROR_CODES.AUTH_EMAIL_TAKEN);
     }
     if (existingUsername) {
-      const err = new Error('Username is already taken');
-      err.statusCode = 409;
-      throw err;
+      throw createError('Username is already taken', 409, ERROR_CODES.AUTH_USERNAME_TAKEN);
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -60,9 +57,7 @@ const AuthService = {
     const valid = await bcrypt.compare(password, hash);
 
     if (!user || !valid) {
-      const err = new Error('Invalid email or password');
-      err.statusCode = 401;
-      throw err;
+      throw createError('Invalid email or password', 401, ERROR_CODES.AUTH_INVALID_CREDENTIALS);
     }
 
     const { password_hash: _, ...safeUser } = user;
@@ -82,25 +77,19 @@ const AuthService = {
     try {
       payload = jwt.verify(rawToken, config.jwt.refreshSecret);
     } catch {
-      const err = new Error('Invalid or expired refresh token');
-      err.statusCode = 401;
-      throw err;
+      throw createError('Invalid or expired refresh token', 401, ERROR_CODES.AUTH_TOKEN_INVALID);
     }
 
     // 2. Look up in DB
     const stored = await RefreshTokenModel.findByToken(rawToken);
     if (!stored) {
-      const err = new Error('Refresh token not found');
-      err.statusCode = 401;
-      throw err;
+      throw createError('Refresh token not found', 401, ERROR_CODES.AUTH_TOKEN_INVALID);
     }
 
     // 3. Reuse detection — token was already revoked
     if (stored.revoked) {
       await RefreshTokenModel.revokeFamily(stored.family);
-      const err = new Error('Refresh token reuse detected — all sessions revoked');
-      err.statusCode = 401;
-      throw err;
+      throw createError('Refresh token reuse detected — all sessions revoked', 401, ERROR_CODES.AUTH_TOKEN_REUSE);
     }
 
     // 4. Revoke the used token
@@ -109,9 +98,7 @@ const AuthService = {
     // 5. Fetch fresh user data and issue new tokens
     const user = await AuthModel.findById(payload.id);
     if (!user) {
-      const err = new Error('User not found');
-      err.statusCode = 401;
-      throw err;
+      throw createError('User not found', 401, ERROR_CODES.AUTH_TOKEN_INVALID);
     }
 
     const { password_hash: _, ...safeUser } = user;
@@ -174,9 +161,7 @@ const AuthService = {
   async resetPassword({ token, password }) {
     const record = await PasswordResetModel.findValidByToken(token);
     if (!record) {
-      const err = new Error('Invalid or expired reset token');
-      err.statusCode = 400;
-      throw err;
+      throw createError('Invalid or expired reset token', 400, ERROR_CODES.AUTH_RESET_TOKEN_INVALID);
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

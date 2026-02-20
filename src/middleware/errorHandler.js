@@ -29,6 +29,7 @@ function errorHandler(err, req, res, _next) {
   res.status(statusCode).json({
     success: false,
     error: {
+      code:    err.code || (statusCode >= 500 ? 'SERVER_001' : 'ERROR'),
       message,
       // Only expose stack trace outside production
       ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
