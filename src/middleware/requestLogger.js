@@ -13,6 +13,10 @@ const logger = require('../config/logger');
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+// Include the Correlation ID (set by correlationId middleware) in every
+// HTTP log line so you can grep a single UUID across all log output.
+morgan.token('request-id', (req) => req.requestId || '-');
+
 // Pipe Morgan output into Winston so all logs go through one pipeline
 const stream = {
   write: (message) => logger.http(message.trimEnd()),
@@ -22,6 +26,11 @@ const stream = {
 const skip = (req) =>
   process.env.NODE_ENV === 'production' && req.url === '/health';
 
-const requestLogger = morgan(isDev ? 'dev' : 'combined', { stream, skip });
+// Dev: human-readable with ID prefix
+// Prod: Apache combined with request ID appended
+const devFmt  = ':request-id :method :url :status :response-time ms';
+const prodFmt = ':request-id :remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"';
+
+const requestLogger = morgan(isDev ? devFmt : prodFmt, { stream, skip });
 
 module.exports = requestLogger;

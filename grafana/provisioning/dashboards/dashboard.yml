@@ -1,0 +1,17 @@
+# ─────────────────────────────────────────────────────────
+# grafana/provisioning/dashboards/dashboard.yml
+# ─────────────────────────────────────────────────────────
+# Tells Grafana to load pre-built dashboard JSON files from
+# /var/lib/grafana/dashboards on startup.
+# ─────────────────────────────────────────────────────────
+
+apiVersion: 1
+
+providers:
+  - name:            CloudArc
+    orgId:           1
+    type:            file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards
