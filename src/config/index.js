@@ -34,6 +34,18 @@ const config = {
     refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d', // refresh token
   },
+
+  email: {
+    host:   process.env.EMAIL_HOST   || '',
+    port:   parseInt(process.env.EMAIL_PORT, 10) || 587,
+    secure: process.env.EMAIL_SECURE === 'true',
+    user:   process.env.EMAIL_USER   || '',
+    pass:   process.env.EMAIL_PASS   || '',
+    from:   process.env.EMAIL_FROM   || '"CloudArc" <no-reply@cloudsarc.site>',
+  },
+
+  // Password reset token TTL in minutes
+  passwordResetTTL: parseInt(process.env.PASSWORD_RESET_TTL_MIN, 10) || 30,
 };
 
 module.exports = Object.freeze(config);

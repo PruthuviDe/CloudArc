@@ -3,6 +3,8 @@ const AuthController = require('../controllers/authController');
 const validate = require('../middleware/validate');
 const authenticate = require('../middleware/authenticate');
 const { registerSchema, loginSchema, refreshSchema, logoutSchema } = require('../validators/authSchemas');
+const { forgotPasswordSchema, resetPasswordSchema } = require('../validators/passwordSchemas');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 const router = Router();
 
@@ -39,7 +41,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ValidationError'
  */
-router.post('/register', validate(registerSchema), AuthController.register);
+router.post('/register', authLimiter, validate(registerSchema), AuthController.register);
 
 /**
  * @swagger
@@ -74,7 +76,7 @@ router.post('/register', validate(registerSchema), AuthController.register);
  *             schema:
  *               $ref: '#/components/schemas/ValidationError'
  */
-router.post('/login', validate(loginSchema), AuthController.login);
+router.post('/login', authLimiter, validate(loginSchema), AuthController.login);
 
 /**
  * @swagger
@@ -138,5 +140,56 @@ router.post('/logout', validate(logoutSchema), AuthController.logout);
  *         description: Missing or invalid access token
  */
 router.post('/logout-all', authenticate, AuthController.logoutAll);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset email
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Email sent (generic — prevents enumeration)
+ */
+router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), AuthController.forgotPassword);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password using a token from the email
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, password]
+ *             properties:
+ *               token:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password updated
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.post('/reset-password', validate(resetPasswordSchema), AuthController.resetPassword);
 
 module.exports = router;

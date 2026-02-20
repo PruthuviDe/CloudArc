@@ -62,6 +62,27 @@ const AuthController = {
       next(err);
     }
   },
+
+  // POST /api/v1/auth/forgot-password
+  // Always returns 200 regardless of whether the email exists (prevents enumeration).
+  async forgotPassword(req, res, next) {
+    try {
+      await AuthService.forgotPassword(req.body.email);
+      res.json({ success: true, message: 'If that email is registered you will receive a reset link shortly.' });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // POST /api/v1/auth/reset-password
+  async resetPassword(req, res, next) {
+    try {
+      await AuthService.resetPassword(req.body);
+      res.json({ success: true, message: 'Password updated. Please log in again.' });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 module.exports = AuthController;

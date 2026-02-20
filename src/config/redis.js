@@ -13,6 +13,8 @@ const redis = new Redis({
   port: config.redis.port,
   password: config.redis.password || undefined,
   maxRetriesPerRequest: 3,
+  // Commands fail immediately when disconnected (no queue buildup in tests)
+  enableOfflineQueue: false,
   // Gracefully handle connection failures so the app can
   // still serve requests (without cache) when Redis is down.
   lazyConnect: true,

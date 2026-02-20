@@ -12,6 +12,8 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
 const AuthModel = require('../models/authModel');
 const RefreshTokenModel = require('../models/refreshTokenModel');
+const PasswordResetModel = require('../models/passwordResetModel');
+const { sendMail } = require('../config/mailer');
 const config = require('../config');
 
 const SALT_ROUNDS = 12;
@@ -132,12 +134,68 @@ const AuthService = {
     );
   },
 
+  /**
+   * Initiate password reset.
+   * Always resolves (no email enumeration) — caller sends a generic response.
+   */
+  async forgotPassword(email) {
+    const user = await AuthModel.findIdByEmail(email);
+    if (!user) return; // silently ignore unknown emails
+
+    // Invalidate any previous unused tokens for this user
+    await PasswordResetModel.invalidateAllForUser(user.id);
+
+    // Generate a cryptographically random token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + config.passwordResetTTL * 60 * 1000);
+
+    await PasswordResetModel.create({ userId: user.id, token: rawToken, expiresAt });
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://cloudsarc.site'}/reset-password?token=${rawToken}`;
+
+    await sendMail({
+      to:      email,
+      subject: 'CloudArc — Password Reset',
+      html: `
+        <h2>Password Reset</h2>
+        <p>Click the link below to reset your CloudArc password.
+           This link expires in ${config.passwordResetTTL} minutes.</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>If you did not request this, ignore this email.</p>
+      `,
+      text: `Reset your password: ${resetUrl}\n\nExpires in ${config.passwordResetTTL} minutes.`,
+    });
+  },
+
+  /**
+   * Complete password reset with a valid token + new password.
+   * Throws 400 if token is invalid, expired, or already used.
+   */
+  async resetPassword({ token, password }) {
+    const record = await PasswordResetModel.findValidByToken(token);
+    if (!record) {
+      const err = new Error('Invalid or expired reset token');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await AuthModel.updatePassword(record.user_id, passwordHash);
+    await PasswordResetModel.markUsed(token);
+
+    // Revoke all refresh tokens — force re-login on all devices
+    await pool.query(
+      `UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1`,
+      [record.user_id]
+    );
+  },
+
   // ── Private helpers ─────────────────────────────────────
 
-  /** Short-lived access token (15 min default). */
+  /** Short-lived access token (15 min default). Includes role for RBAC. */
   _signAccessToken(user) {
     return jwt.sign(
-      { id: user.id, username: user.username, email: user.email },
+      { id: user.id, username: user.username, email: user.email, role: user.role || 'user' },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
