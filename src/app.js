@@ -54,7 +54,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '1.0.1',          // CI/CD pipeline test
+    version: '1.1.0',          // Tier 3: migrations + swagger + staging
   });
 });
 
