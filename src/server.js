@@ -32,16 +32,30 @@ async function start() {
   }
 
   // ── Start HTTP server ──────────────────────────────────
-  app.listen(config.port, () => {
+  const server = app.listen(config.port, () => {
     logger.info('CloudArc API started', { port: config.port, env: config.env });
   });
+
+  // Expose server for graceful shutdown
+  process._httpServer = server;
 }
 
 // ── Graceful shutdown ────────────────────────────────────
 async function shutdown(signal) {
   logger.info(`${signal} received — shutting down gracefully`);
-  try { await redis.quit(); } catch { /* already closed */ }
-  try { await pool.end(); } catch { /* already closed */ }
+
+  // 1. Stop accepting new connections
+  const server = process._httpServer;
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+    logger.info('HTTP server closed — no new connections');
+  }
+
+  // 2. Close data connections
+  try { await redis.quit();  } catch { /* already closed */ }
+  try { await pool.end();    } catch { /* already closed */ }
+
+  logger.info('Shutdown complete');
   process.exit(0);
 }
 

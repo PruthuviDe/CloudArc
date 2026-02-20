@@ -62,6 +62,15 @@ services:
       JWT_EXPIRES_IN: 15m
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-in-production}
       JWT_REFRESH_EXPIRES_IN: 7d
+      # Email / password-reset (leave blank to use Ethereal in dev)
+      EMAIL_HOST:  ${EMAIL_HOST:-}
+      EMAIL_PORT:  ${EMAIL_PORT:-587}
+      EMAIL_SECURE: ${EMAIL_SECURE:-false}
+      EMAIL_USER:  ${EMAIL_USER:-}
+      EMAIL_PASS:  ${EMAIL_PASS:-}
+      EMAIL_FROM:  ${EMAIL_FROM:-"CloudArc <no-reply@cloudsarc.site>"}
+      FRONTEND_URL: ${FRONTEND_URL:-https://cloudsarc.site}
+      PASSWORD_RESET_TTL_MIN: 30
       LOG_LEVEL: info
       SENTRY_DSN: ${SENTRY_DSN:-}
       # node-pg-migrate reads this to run migrations on startup

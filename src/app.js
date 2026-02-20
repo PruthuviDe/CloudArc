@@ -65,7 +65,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '1.3.0',          // Tier 5: Pagination + API versioning + Refresh tokens
+    version: '1.4.0',          // Tier 6: Rate limiting, RBAC, password reset, graceful shutdown, k6
   });
 });
 

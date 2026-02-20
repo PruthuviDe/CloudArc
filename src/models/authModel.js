@@ -14,7 +14,7 @@ const AuthModel = {
    */
   async findByEmail(email) {
     const { rows } = await pool.query(
-      `SELECT id, username, email, password_hash, created_at
+      `SELECT id, username, email, password_hash, role, created_at
          FROM users
         WHERE email = $1`,
       [email]
@@ -38,7 +38,7 @@ const AuthModel = {
    */
   async findById(id) {
     const { rows } = await pool.query(
-      `SELECT id, username, email, password_hash, created_at
+      `SELECT id, username, email, password_hash, role, created_at
          FROM users
         WHERE id = $1`,
       [id]
@@ -53,10 +53,31 @@ const AuthModel = {
     const { rows } = await pool.query(
       `INSERT INTO users (username, email, password_hash)
             VALUES ($1, $2, $3)
-       RETURNING id, username, email, created_at`,
+       RETURNING id, username, email, role, created_at`,
       [username, email, passwordHash]
     );
     return rows[0];
+  },
+
+  /**
+   * Update a user's password hash (used after password reset).
+   */
+  async updatePassword(userId, passwordHash) {
+    await pool.query(
+      `UPDATE users SET password_hash = $1 WHERE id = $2`,
+      [passwordHash, userId]
+    );
+  },
+
+  /**
+   * Find a user by email (plain — for password reset lookup, no hash needed).
+   */
+  async findIdByEmail(email) {
+    const { rows } = await pool.query(
+      `SELECT id, username, email FROM users WHERE email = $1`,
+      [email]
+    );
+    return rows[0] || null;
   },
 };
 
