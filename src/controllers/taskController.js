@@ -52,7 +52,8 @@ const TaskController = {
   // POST /api/tasks
   async create(req, res, next) {
     try {
-      const task = await TaskService.createTask(req.body);
+      const actor = { id: req.user.id, email: req.user.email, _ip: req.ip, _requestId: req.requestId };
+      const task = await TaskService.createTask(req.body, actor);
       res.status(201).json({ success: true, data: task });
     } catch (err) {
       next(err);
@@ -62,7 +63,8 @@ const TaskController = {
   // PUT /api/tasks/:id
   async update(req, res, next) {
     try {
-      const task = await TaskService.updateTask(req.params.id, req.body);
+      const actor = { id: req.user.id, email: req.user.email, _ip: req.ip, _requestId: req.requestId };
+      const task = await TaskService.updateTask(req.params.id, req.body, actor);
       res.json({ success: true, data: task });
     } catch (err) {
       next(err);
@@ -72,7 +74,8 @@ const TaskController = {
   // DELETE /api/tasks/:id
   async delete(req, res, next) {
     try {
-      await TaskService.deleteTask(req.params.id);
+      const actor = { id: req.user.id, email: req.user.email, _ip: req.ip, _requestId: req.requestId };
+      await TaskService.deleteTask(req.params.id, actor);
       res.status(204).send();
     } catch (err) {
       next(err);

@@ -21,7 +21,7 @@ function validate(schema) {
       const details = error.details.map((d) => d.message);
       return res.status(422).json({
         success: false,
-        error: { message: 'Validation failed', details },
+        error: { code: 'VALIDATION_001', message: 'Validation failed', details },
       });
     }
 

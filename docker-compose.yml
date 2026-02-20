@@ -73,6 +73,8 @@ services:
       PASSWORD_RESET_TTL_MIN: 30
       LOG_LEVEL: info
       SENTRY_DSN: ${SENTRY_DSN:-}
+      DB_POOL_MAX: 20
+      DB_STATEMENT_TIMEOUT_MS: 10000
       # node-pg-migrate reads this to run migrations on startup
       DATABASE_URL: postgres://postgres:pruthuvide@db:5432/cloudarc
     # Run migrations then start the server.

@@ -63,7 +63,8 @@ const UserController = {
   // PUT /api/users/:id
   async update(req, res, next) {
     try {
-      const user = await UserService.updateUser(req.params.id, req.body);
+      const actor = { id: req.user.id, email: req.user.email, _ip: req.ip, _requestId: req.requestId };
+      const user = await UserService.updateUser(req.params.id, req.body, actor);
       res.json({ success: true, data: user });
     } catch (err) {
       next(err);
@@ -73,7 +74,8 @@ const UserController = {
   // DELETE /api/users/:id
   async delete(req, res, next) {
     try {
-      await UserService.deleteUser(req.params.id);
+      const actor = { id: req.user.id, email: req.user.email, _ip: req.ip, _requestId: req.requestId };
+      await UserService.deleteUser(req.params.id, actor);
       res.status(204).send();
     } catch (err) {
       next(err);

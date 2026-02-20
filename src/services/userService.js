@@ -7,6 +7,8 @@
  */
 
 const UserModel = require('../models/userModel');
+const AuditModel = require('../models/auditModel');
+const { createError, ERROR_CODES } = require('../errors/codes');
 
 const UserService = {
   async getAllUsers({ limit, offset } = {}) {
@@ -15,39 +17,33 @@ const UserService = {
 
   async getUserById(id) {
     const user = await UserModel.findById(id);
-    if (!user) {
-      const error = new Error('User not found');
-      error.statusCode = 404;
-      throw error;
-    }
+    if (!user) throw createError('User not found', 404, ERROR_CODES.NOT_FOUND_USER);
     return user;
   },
 
   async createUser(data) {
     if (!data.username || !data.email) {
-      const error = new Error('Username and email are required');
-      error.statusCode = 400;
-      throw error;
+      throw createError('Username and email are required', 400, ERROR_CODES.VALIDATION_FAILED);
     }
     return UserModel.create(data);
   },
 
-  async updateUser(id, data) {
+  async updateUser(id, data, actor) {
     const user = await UserModel.update(id, data);
-    if (!user) {
-      const error = new Error('User not found');
-      error.statusCode = 404;
-      throw error;
+    if (!user) throw createError('User not found', 404, ERROR_CODES.NOT_FOUND_USER);
+    if (actor) {
+      AuditModel.log({ actorId: actor.id, actorEmail: actor.email, action: 'user.update',
+        resource: 'user', resourceId: id, ip: actor._ip, requestId: actor._requestId });
     }
     return user;
   },
 
-  async deleteUser(id) {
+  async deleteUser(id, actor) {
     const deleted = await UserModel.delete(id);
-    if (!deleted) {
-      const error = new Error('User not found');
-      error.statusCode = 404;
-      throw error;
+    if (!deleted) throw createError('User not found', 404, ERROR_CODES.NOT_FOUND_USER);
+    if (actor) {
+      AuditModel.log({ actorId: actor.id, actorEmail: actor.email, action: 'user.delete',
+        resource: 'user', resourceId: id, ip: actor._ip, requestId: actor._requestId });
     }
     return true;
   },

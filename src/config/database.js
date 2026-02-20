@@ -15,9 +15,11 @@ const pool = new Pool({
   database: config.db.database,
   user: config.db.user,
   password: config.db.password,
-  max: 20,               // max connections in the pool
+  min: 2,                              // keep at least 2 warm connections
+  max: parseInt(process.env.DB_POOL_MAX, 10) || 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+  statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT_MS, 10) || 10000,
 });
 
 // Log pool-level errors so they don't crash the process silently
