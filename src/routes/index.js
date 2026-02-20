@@ -12,8 +12,13 @@ const taskRoutes = require('./taskRoutes');
 
 const router = Router();
 
-router.use('/auth',  authRoutes);
-router.use('/users', userRoutes);
-router.use('/tasks', taskRoutes);
+// v1 router — canonical paths
+const v1 = Router();
+v1.use('/auth',  authRoutes);
+v1.use('/users', userRoutes);
+v1.use('/tasks', taskRoutes);
+
+router.use('/v1', v1);  // /api/v1/...
+router.use('/', v1);    // /api/...  (backward-compat alias)
 
 module.exports = router;

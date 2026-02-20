@@ -49,12 +49,12 @@ const TaskService = {
       // Redis may be unreachable — proceed without cache
     }
 
-    // 2. Query database
-    const tasks = await TaskModel.findAll(query);
+    // 2. Query database (model returns { rows, total })
+    const result = await TaskModel.findAll(query);
 
     // 3. Store in cache for next reads
     try {
-      await redis.set(cacheKey, JSON.stringify(tasks), 'EX', config.cacheTTL);
+      await redis.set(cacheKey, JSON.stringify(result), 'EX', config.cacheTTL);
     } catch {
       // Non-critical — swallow
     }

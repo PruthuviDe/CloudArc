@@ -52,7 +52,7 @@ describe('Auth guard on /api/users', () => {
 
 describe('GET /api/users', () => {
   it('returns user list', async () => {
-    UserService.getAllUsers.mockResolvedValue([FAKE_USER]);
+    UserService.getAllUsers.mockResolvedValue({ rows: [FAKE_USER], total: 1 });
 
     const res = await request(app)
       .get('/api/users')

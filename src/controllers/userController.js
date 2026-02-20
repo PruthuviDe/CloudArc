@@ -8,12 +8,33 @@
 
 const UserService = require('../services/userService');
 
+// ── Pagination helper ────────────────────────────────────
+function parsePagination(query) {
+  const page  = Math.max(1, parseInt(query.page,  10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
+  const offset = (page - 1) * limit;
+  return { page, limit, offset };
+}
+
 const UserController = {
-  // GET /api/users
+  // GET /api/v1/users?page=1&limit=20
   async getAll(req, res, next) {
     try {
-      const users = await UserService.getAllUsers();
-      res.json({ success: true, data: users });
+      const { page, limit, offset } = parsePagination(req.query);
+      const { rows, total } = await UserService.getAllUsers({ limit, offset });
+      const pages = Math.ceil(total / limit);
+      res.json({
+        success: true,
+        data: rows,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages,
+          next: page < pages ? page + 1 : null,
+          prev: page > 1    ? page - 1 : null,
+        },
+      });
     } catch (err) {
       next(err);
     }

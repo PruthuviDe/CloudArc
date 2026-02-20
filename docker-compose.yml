@@ -59,7 +59,9 @@ services:
       REDIS_PASSWORD: ""
       CACHE_TTL: 60
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      JWT_EXPIRES_IN: 7d
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-in-production}
+      JWT_REFRESH_EXPIRES_IN: 7d
       LOG_LEVEL: info
       SENTRY_DSN: ${SENTRY_DSN:-}
       # node-pg-migrate reads this to run migrations on startup
