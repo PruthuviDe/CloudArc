@@ -29,7 +29,11 @@ app.use(requestLogger);       // HTTP request logging
 
 // ── Health check (useful for load balancers / k8s probes) ─
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: '1.0.1',          // CI/CD pipeline test
+  });
 });
 
 // ── API routes ───────────────────────────────────────────
