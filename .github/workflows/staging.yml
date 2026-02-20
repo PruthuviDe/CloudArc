@@ -1,0 +1,111 @@
+# ─────────────────────────────────────────────────────────
+# .github/workflows/staging.yml
+# ─────────────────────────────────────────────────────────
+# Staging CI/CD Pipeline
+#
+# Trigger: every push to the develop branch
+#
+# Jobs:
+#   test            → Jest suite (same gate as production)
+#   deploy-staging  → SSH to VPS, deploy to /opt/cloudarc-staging
+#                     (runs on port 8080, separate DB)
+#
+# Staging URL: http://152.42.194.51:8080
+#
+# Required GitHub Secrets (same as deploy.yml):
+#   VPS_HOST     → 152.42.194.51
+#   VPS_USER     → root
+#   VPS_SSH_KEY  → contents of C:\Users\User\.ssh\cloudarc_deploy
+#
+# Optional Secrets:
+#   STAGING_JWT_SECRET → JWT secret for staging (defaults to placeholder)
+# ─────────────────────────────────────────────────────────
+
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - develop       # fires on every push to develop
+
+jobs:
+  # ── Job 1: Test ───────────────────────────────────────
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest tests
+        run: npm run test:ci
+        env:
+          JWT_SECRET: test-secret-for-ci
+          NODE_ENV: test
+
+  # ── Job 2: Deploy to Staging (only if tests pass) ─────
+  deploy-staging:
+    name: SSH Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: test          # blocks deploy if tests fail
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy Staging to VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key:      ${{ secrets.VPS_SSH_KEY }}
+          port:     22
+          script: |
+            set -e
+
+            # ── Bootstrap staging directory on first run ──
+            if [ ! -d /opt/cloudarc-staging ]; then
+              echo "── Cloning repo into /opt/cloudarc-staging ─────"
+              git clone https://github.com/PruthuviDe/CloudArc.git \
+                        /opt/cloudarc-staging
+            fi
+
+            cd /opt/cloudarc-staging
+
+            echo "── Switching to develop branch ──────────────────"
+            git fetch origin
+            git checkout develop
+            git pull origin develop
+
+            # ── Bootstrap .env for staging if missing ─────────
+            # Copies prod .env and swaps the DB name.
+            # Dev should update STAGING_JWT_SECRET manually.
+            if [ ! -f .env ]; then
+              echo "── Creating staging .env from prod template ─────"
+              cp /opt/cloudarc/.env .env
+              sed -i 's/DB_NAME=cloudarc$/DB_NAME=cloudarc_staging/' .env
+              echo "STAGING_JWT_SECRET=staging-$(openssl rand -hex 16)" >> .env
+            fi
+
+            echo "── Rebuilding & restarting staging containers ───"
+            docker compose -p cloudarc-staging \
+                           -f docker-compose.staging.yml \
+                           up -d --build
+
+            echo "── Staging container status ─────────────────────"
+            docker compose -p cloudarc-staging \
+                           -f docker-compose.staging.yml \
+                           ps
+
+            echo "── Staging deploy complete ✓ ────────────────────"
+            echo "   API available at: http://$(hostname -I | awk '{print $1}'):8080/health"

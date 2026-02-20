@@ -8,7 +8,9 @@
     "dev": "nodemon src/server.js",
     "test": "jest --forceExit --detectOpenHandles",
     "test:ci": "jest --forceExit --detectOpenHandles --ci --coverage",
-    "migrate": "node src/database/migrate.js",
+    "migrate": "node-pg-migrate -m migrations up",
+    "migrate:down": "node-pg-migrate -m migrations down 0",
+    "migrate:create": "node-pg-migrate -m migrations create",
     "seed": "node src/database/seed.js"
   },
   "keywords": [
@@ -31,7 +33,10 @@
     "joi": "^18.0.2",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
+    "node-pg-migrate": "^8.0.4",
     "pg": "^8.13.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.0.5",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"

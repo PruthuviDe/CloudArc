@@ -13,7 +13,8 @@ services:
       POSTGRES_PASSWORD: pruthuvide
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      # schema.sql removed — node-pg-migrate now owns the schema
+      # (migrations run automatically when the api container starts)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d cloudarc"]
       interval: 10s
@@ -61,6 +62,11 @@ services:
       JWT_EXPIRES_IN: 7d
       LOG_LEVEL: info
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # node-pg-migrate reads this to run migrations on startup
+      DATABASE_URL: postgres://postgres:pruthuvide@db:5432/cloudarc
+    # Run migrations then start the server.
+    # Migrations are idempotent — already-applied ones are skipped.
+    command: sh -c "npm run migrate && node src/server.js"
     volumes:
       - api_logs:/app/logs
     depends_on:

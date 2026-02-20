@@ -16,6 +16,8 @@ const Sentry = require('./instrument');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const logger = require('./config/logger');
 const requestLogger = require('./middleware/requestLogger');
@@ -32,10 +34,20 @@ if (process.env.SENTRY_DSN) {
 }
 
 // ── Global middleware ────────────────────────────────────
-app.use(helmet());            // Security headers
+// contentSecurityPolicy disabled — Swagger UI needs inline scripts.
+// All other helmet headers (X-Frame-Options, HSTS, etc.) remain active.
+app.use(helmet({ contentSecurityPolicy: false }));  // Security headers
 app.use(cors());              // Cross-origin support
 app.use(express.json());      // Parse JSON bodies
 app.use(requestLogger);       // HTTP request logging
+
+// ── Swagger API Docs ────────────────────────────────────
+// Browsable at /api/docs  — skipped in test environment.
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'CloudArc API Docs',
+  }));
+}
 
 // ── Health check (useful for load balancers / k8s probes) ─
 app.get('/health', (_req, res) => {

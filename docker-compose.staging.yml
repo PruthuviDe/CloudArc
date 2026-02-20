@@ -1,0 +1,92 @@
+# ─────────────────────────────────────────────────────────
+# docker-compose.staging.yml
+# ─────────────────────────────────────────────────────────
+# Staging environment – isolated from production.
+#
+# Usage (on VPS, from /opt/cloudarc-staging):
+#   docker compose -p cloudarc-staging \
+#                  -f docker-compose.staging.yml \
+#                  up -d --build
+#
+# What's different from production:
+#   • NODE_ENV=staging
+#   • Port 8080 exposed (HTTP only, no nginx/SSL)
+#   • Separate DB: cloudarc_staging
+#   • Separate named volumes (no data overlap with prod)
+#   • LOG_LEVEL=debug  (verbose output for investigation)
+# ─────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL (staging) ──────────────────────────────
+  db_staging:
+    image: postgres:16
+    container_name: cloudarc-staging-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       cloudarc_staging
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: pruthuvide
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloudarc_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (staging) ───────────────────────────────────
+  redis_staging:
+    image: redis:7.4.7
+    container_name: cloudarc-staging-redis
+    restart: unless-stopped
+    volumes:
+      - redis_staging_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Node.js API (staging) ─────────────────────────────
+  # Exposed on port 8080 — reachable at  http://VPS_IP:8080
+  api_staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloudarc-staging-api
+    restart: unless-stopped
+    ports:
+      - "8080:3000"        # public: http://VPS_IP:8080
+    environment:
+      NODE_ENV:      staging
+      PORT:          3000
+      DB_HOST:       db_staging
+      DB_PORT:       5432
+      DB_NAME:       cloudarc_staging
+      DB_USER:       postgres
+      DB_PASSWORD:   pruthuvide
+      REDIS_HOST:    redis_staging
+      REDIS_PORT:    6379
+      REDIS_PASSWORD: ""
+      CACHE_TTL:     60
+      JWT_SECRET:    ${STAGING_JWT_SECRET:-staging-change-me-in-env}
+      JWT_EXPIRES_IN: 7d
+      LOG_LEVEL:     debug
+      SENTRY_DSN:    ${SENTRY_DSN:-}
+      DATABASE_URL:  postgres://postgres:pruthuvide@db_staging:5432/cloudarc_staging
+    # Migrations run first, then server starts
+    command: sh -c "npm run migrate && node src/server.js"
+    volumes:
+      - api_staging_logs:/app/logs
+    depends_on:
+      db_staging:
+        condition: service_healthy
+      redis_staging:
+        condition: service_healthy
+
+# ── Named volumes (isolated from prod volumes) ───────────
+volumes:
+  postgres_staging_data:
+  redis_staging_data:
+  api_staging_logs:
