@@ -65,16 +65,20 @@ services:
 
   # ── Nginx reverse proxy ────────────────────────────────
   # The ONLY service with a public port (80).
-  # Proxies all traffic to api:3000 and adds security headers
-  # + rate limiting.
+  # Proxies all traffic to api:3000.
   nginx:
     image: nginx:1.27-alpine
     container_name: cloudarc-nginx
     restart: unless-stopped
     ports:
-      - "80:80"              # only public-facing port
+      - "80:80"              # HTTP (+ certbot challenge)
+      - "443:443"            # HTTPS
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Certbot writes challenge files here (Let's Encrypt validation)
+      - certbot_webroot:/var/www/certbot:ro
+      # SSL certs live here after certbot runs
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - api
 
@@ -82,3 +86,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  certbot_webroot:
