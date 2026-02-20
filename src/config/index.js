@@ -27,6 +27,11 @@ const config = {
   },
 
   cacheTTL: parseInt(process.env.CACHE_TTL, 10) || 60, // seconds
+
+  jwt: {
+    secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  },
 };
 
 module.exports = Object.freeze(config);

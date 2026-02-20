@@ -9,12 +9,23 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ── Users ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-  id          SERIAL        PRIMARY KEY,
-  username    VARCHAR(100)  NOT NULL UNIQUE,
-  email       VARCHAR(255)  NOT NULL UNIQUE,
-  created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+  id            SERIAL        PRIMARY KEY,
+  username      VARCHAR(100)  NOT NULL UNIQUE,
+  email         VARCHAR(255)  NOT NULL UNIQUE,
+  password_hash TEXT          NOT NULL DEFAULT '',
+  created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
+
+-- Add password_hash to existing deployments (migration-safe)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='users' AND column_name='password_hash'
+  ) THEN
+    ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT '';
+  END IF;
+END $$;
 
 -- ── Tasks ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tasks (

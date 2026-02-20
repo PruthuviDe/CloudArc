@@ -6,13 +6,19 @@
 
 const { Router } = require('express');
 const TaskController = require('../controllers/taskController');
+const authenticate = require('../middleware/authenticate');
+const validate = require('../middleware/validate');
+const { createTaskSchema, updateTaskSchema } = require('../validators/taskSchemas');
 
 const router = Router();
 
-router.get('/', TaskController.getAll);
-router.get('/:id', TaskController.getById);
-router.post('/', TaskController.create);
-router.put('/:id', TaskController.update);
+// All task routes require a valid JWT
+router.use(authenticate);
+
+router.get('/',     TaskController.getAll);
+router.get('/:id',  TaskController.getById);
+router.post('/',    validate(createTaskSchema), TaskController.create);
+router.put('/:id',  validate(updateTaskSchema), TaskController.update);
 router.delete('/:id', TaskController.delete);
 
 module.exports = router;
