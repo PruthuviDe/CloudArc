@@ -13,13 +13,27 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const Sentry = require('@sentry/node');
 
+const logger = require('./config/logger');
 const requestLogger = require('./middleware/requestLogger');
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
 const apiRoutes = require('./routes');
 
 const app = express();
+
+// ── Sentry (initialise before any routes) ────────────────
+// Only active when SENTRY_DSN is set in the environment.
+// Safe to run without it — Sentry fails silently when DSN is absent.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.2, // capture 20% of transactions for performance
+  });
+  logger.info('Sentry error tracking enabled');
+}
 
 // ── Global middleware ────────────────────────────────────
 app.use(helmet());            // Security headers
@@ -38,7 +52,11 @@ app.get('/health', (_req, res) => {
 
 // ── API routes ───────────────────────────────────────────
 app.use('/api', apiRoutes);
-
+// ── Sentry error handler (must be before custom error handler) ─
+// Captures all unhandled exceptions and sends to Sentry dashboard.
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 // ── Catch-all & error handling ───────────────────────────
 app.use(notFound);
 app.use(errorHandler);

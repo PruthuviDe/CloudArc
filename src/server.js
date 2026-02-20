@@ -10,6 +10,7 @@
 
 const app = require('./app');
 const config = require('./config');
+const logger = require('./config/logger');
 const redis = require('./config/redis');
 const pool = require('./config/database');
 
@@ -17,10 +18,9 @@ async function start() {
   // ── Verify PostgreSQL connectivity ─────────────────────
   try {
     await pool.query('SELECT 1');
-    console.log(`[DB] PostgreSQL connected  (${config.db.host}:${config.db.port}/${config.db.database})`);
+    logger.info('PostgreSQL connected', { host: config.db.host, port: config.db.port, db: config.db.database });
   } catch (err) {
-    console.error('[DB] PostgreSQL connection failed:', err.message);
-    console.error('     Make sure PostgreSQL is running and .env values are correct.');
+    logger.error('PostgreSQL connection failed — exiting', { error: err.message });
     process.exit(1);
   }
 
@@ -28,19 +28,18 @@ async function start() {
   try {
     await redis.connect();
   } catch {
-    console.warn('[Redis] Could not connect — caching disabled');
+    logger.warn('Redis could not connect — caching disabled');
   }
 
   // ── Start HTTP server ──────────────────────────────────
   app.listen(config.port, () => {
-    console.log(`[Server] CloudArc API listening on http://localhost:${config.port}`);
-    console.log(`[Server] Environment: ${config.env}`);
+    logger.info('CloudArc API started', { port: config.port, env: config.env });
   });
 }
 
 // ── Graceful shutdown ────────────────────────────────────
 async function shutdown(signal) {
-  console.log(`\n[Server] ${signal} received — shutting down…`);
+  logger.info(`${signal} received — shutting down gracefully`);
   try { await redis.quit(); } catch { /* already closed */ }
   try { await pool.end(); } catch { /* already closed */ }
   process.exit(0);
