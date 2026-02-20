@@ -1,0 +1,16 @@
+# ─────────────────────────────────────────────────────────
+# grafana/provisioning/datasources/prometheus.yml
+# ─────────────────────────────────────────────────────────
+# Automatically provisions the Prometheus datasource in
+# Grafana on container startup — no manual UI setup needed.
+# ─────────────────────────────────────────────────────────
+
+apiVersion: 1
+
+datasources:
+  - name:      Prometheus
+    type:      prometheus
+    access:    proxy
+    url:       http://prometheus:9090
+    isDefault: true
+    editable:  false

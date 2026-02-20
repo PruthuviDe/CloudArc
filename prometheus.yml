@@ -1,0 +1,27 @@
+# ─────────────────────────────────────────────────────────
+# prometheus.yml
+# ─────────────────────────────────────────────────────────
+# Prometheus scrape configuration for CloudArc.
+#
+# Prometheus reaches the API directly over the Docker bridge
+# network (service name resolution) — it never goes through
+# Nginx, so /metrics is invisible to the public internet.
+# ─────────────────────────────────────────────────────────
+
+global:
+  scrape_interval:     15s   # How often to scrape targets
+  evaluation_interval: 15s   # How often to evaluate rules
+
+scrape_configs:
+
+  # ── CloudArc API ──────────────────────────────────────
+  - job_name: 'cloudarc-api'
+    static_configs:
+      - targets: ['api:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s     # slightly faster for responsive dashboards
+
+  # ── Prometheus self-monitoring ───────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

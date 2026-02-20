@@ -20,6 +20,8 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
 const logger = require('./config/logger');
+const correlationId = require('./middleware/correlationId');
+const { metricsMiddleware, metricsHandler } = require('./middleware/metrics');
 const requestLogger = require('./middleware/requestLogger');
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
@@ -39,6 +41,8 @@ if (process.env.SENTRY_DSN) {
 app.use(helmet({ contentSecurityPolicy: false }));  // Security headers
 app.use(cors());              // Cross-origin support
 app.use(express.json());      // Parse JSON bodies
+app.use(correlationId);       // Attach X-Request-Id to every request
+app.use(metricsMiddleware);   // Start latency timer (must be early)
 app.use(requestLogger);       // HTTP request logging
 
 // ── Swagger API Docs ────────────────────────────────────
@@ -49,12 +53,19 @@ if (process.env.NODE_ENV !== 'test') {
   }));
 }
 
+// ── Prometheus metrics ───────────────────────────────────
+// Scraped by Prometheus over the internal Docker network.
+// NOT proxied through Nginx — never reachable from the internet.
+if (process.env.NODE_ENV !== 'test') {
+  app.get('/metrics', metricsHandler);
+}
+
 // ── Health check (useful for load balancers / k8s probes) ─
 app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '1.1.0',          // Tier 3: migrations + swagger + staging
+    version: '1.2.0',          // Tier 4: Prometheus + Grafana + Correlation IDs
   });
 });
 

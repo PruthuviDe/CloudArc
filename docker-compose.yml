@@ -94,9 +94,49 @@ services:
     depends_on:
       - api
 
+  # ── Prometheus ────────────────────────────────────────
+  # Scrapes /metrics from api:3000 every 10s.
+  # NOT exposed to the internet — internal Docker network only.
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: cloudarc-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - api
+
+  # ── Grafana ───────────────────────────────────────────
+  # Dashboards at http://VPS_IP:3001
+  # Default login: admin / admin  (change on first login)
+  # Auto-provisioned: Prometheus datasource + CloudArc dashboard
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: cloudarc-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"          # public: http://VPS_IP:3001
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
 # ── Named volumes (data persists between container restarts)
 volumes:
   postgres_data:
   redis_data:
   certbot_webroot:
   api_logs:
+  prometheus_data:
+  grafana_data:
