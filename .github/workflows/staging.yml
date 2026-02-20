@@ -151,10 +151,29 @@ jobs:
             --json number \
             --jq '.[0].number')
 
+          # Helper: retry gh pr merge --auto up to 8 times (GitHub needs a
+          # moment to register required status checks on a freshly-created PR;
+          # without a wait the API returns "Pull request is in unstable status").
+          enable_auto_merge() {
+            local PR_REF="$1"
+            local SUBJECT="$2"
+            for i in $(seq 1 8); do
+              echo "── Auto-merge attempt $i for $PR_REF ───────────"
+              if gh pr merge "$PR_REF" --auto --merge --subject "$SUBJECT"; then
+                echo "── Auto-merge enabled ✓"
+                return 0
+              fi
+              echo "   Not ready yet — waiting 15s for checks to register..."
+              sleep 15
+            done
+            echo "⚠️  Could not enable auto-merge after 8 attempts. PR stays open."
+            return 1
+          }
+
           if [ -n "$EXISTING" ]; then
-            echo "── PR #$EXISTING already open — enabling auto-merge"
-            gh pr merge "$EXISTING" --auto --merge \
-              --subject "chore: auto-merge develop into main (#$EXISTING)"
+            echo "── PR #$EXISTING already open ───────────────────"
+            enable_auto_merge "$EXISTING" \
+              "chore: auto-merge develop into main (#$EXISTING)"
           else
             echo "── Creating new PR ──────────────────────────────"
             PR_URL=$(gh pr create \
@@ -164,9 +183,8 @@ jobs:
               --body "$(printf '## Auto-generated PR\n\nLatest commit: **%s**\n\nStaging verified ✅ — auto-merges once CI checks pass on this PR.' "$COMMIT_MSG")")
 
             echo "── PR created: $PR_URL"
-            echo "── Enabling auto-merge ──────────────────────────"
-            gh pr merge "$PR_URL" --auto --merge \
-              --subject "chore: auto-merge develop into main"
+            enable_auto_merge "$PR_URL" \
+              "chore: auto-merge develop into main"
           fi
 
           echo "── Done: PR will merge to main automatically once checks pass ✓"
