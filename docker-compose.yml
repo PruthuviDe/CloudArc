@@ -57,6 +57,12 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
       CACHE_TTL: 60
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: 7d
+      LOG_LEVEL: info
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - api_logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
@@ -87,3 +93,4 @@ volumes:
   postgres_data:
   redis_data:
   certbot_webroot:
+  api_logs:
